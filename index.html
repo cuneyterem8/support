@@ -3,107 +3,48 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Pulsar Jack support and in-app purchase information.">
-  <title>Pulsar Jack Support</title>
-  <style>
-    :root {
-      color-scheme: light dark;
-      --bg: #080b18;
-      --panel: #12172b;
-      --text: #f5f7ff;
-      --muted: #b9c0d8;
-      --accent: #31c7f3;
-      --border: #273050;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background:
-        radial-gradient(circle at top, rgba(49, 199, 243, 0.12), transparent 34rem),
-        var(--bg);
-      color: var(--text);
-      line-height: 1.65;
-    }
-
-    main {
-      width: min(760px, calc(100% - 32px));
-      margin: 48px auto;
-      padding: 32px;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
-    }
-
-    h1,
-    h2 {
-      line-height: 1.2;
-    }
-
-    h1 {
-      margin: 0 0 24px;
-      font-size: clamp(2rem, 6vw, 3rem);
-    }
-
-    h2 {
-      margin-top: 36px;
-      font-size: 1.35rem;
-    }
-
-    p {
-      margin: 14px 0;
-      color: var(--muted);
-    }
-
-    a {
-      color: var(--accent);
-      font-weight: 650;
-      text-decoration: none;
-    }
-
-    a:hover,
-    a:focus-visible {
-      text-decoration: underline;
-    }
-
-    .developer {
-      margin-top: 36px;
-      padding-top: 20px;
-      border-top: 1px solid var(--border);
-      color: var(--text);
-      font-weight: 650;
-    }
-
-    @media (max-width: 560px) {
-      main {
-        margin: 20px auto;
-        padding: 24px;
-        border-radius: 12px;
-      }
-    }
-  </style>
+  <meta name="description" content="Official support and privacy information for Snake Jack and Pulsar Jack.">
+  <title>Jack Games Support</title>
+  <link rel="stylesheet" href="assets/site.css">
 </head>
 <body>
-  <main>
-    <h1>Pulsar Jack Support</h1>
-
-    <p>For help with gameplay, in-app purchases, or technical issues, contact:</p>
-
-    <p><a href="mailto:cuneyterem8@gmail.com">cuneyterem8@gmail.com</a></p>
-
-    <p>Please include your device model, iOS version, and a description of the issue.</p>
-
-    <h2>In-App Purchases</h2>
-
-    <p>Pulsar Jack offers an optional consumable in-app purchase of 20,000 credits through Apple’s In-App Purchase system. If a completed purchase is not reflected in your balance, restart the app and contact support if the issue continues.</p>
-
-    <p class="developer">Developer: Cüneyt Erem</p>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="./">Jack Games Support</a>
+  </header>
+  <main id="main" class="page-shell">
+    <section class="hero" aria-labelledby="page-title">
+      <p class="eyebrow">Official support center</p>
+      <h1 id="page-title">Choose your game</h1>
+      <p>Support and privacy information is available in English and Turkish.</p>
+    </section>
+    <section class="card-grid" aria-label="Games">
+      <article class="app-card snake-theme">
+        <div class="app-mark" aria-hidden="true">S</div>
+        <div>
+          <h2>Snake Jack</h2>
+          <p>Gameplay, purchase, privacy, and troubleshooting information.</p>
+          <div class="action-row">
+            <a class="button primary" href="snake-jack/">English</a>
+            <a class="button secondary" href="tr/snake-jack/" lang="tr">Türkçe</a>
+          </div>
+        </div>
+      </article>
+      <article class="app-card pulsar-theme">
+        <div class="app-mark" aria-hidden="true">P</div>
+        <div>
+          <h2>Pulsar Jack</h2>
+          <p>Gameplay, purchase, privacy, and troubleshooting information.</p>
+          <div class="action-row">
+            <a class="button primary" href="pulsar-jack/">English</a>
+            <a class="button secondary" href="tr/pulsar-jack/" lang="tr">Türkçe</a>
+          </div>
+        </div>
+      </article>
+    </section>
   </main>
+  <footer class="site-footer">
+    <p>Developer: Cüneyt Erem</p>
+  </footer>
 </body>
 </html>
