@@ -7,14 +7,14 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const routes = [
-  { file: 'snake-jack/index.html', game: 'Snake Jack', lang: 'en', privacy: false, switchHref: '../tr/snake-jack/' },
-  { file: 'snake-jack/privacy/index.html', game: 'Snake Jack', lang: 'en', privacy: true, switchHref: '../../tr/snake-jack/privacy/' },
-  { file: 'pulsar-jack/index.html', game: 'Pulsar Jack', lang: 'en', privacy: false, switchHref: '../tr/pulsar-jack/' },
-  { file: 'pulsar-jack/privacy/index.html', game: 'Pulsar Jack', lang: 'en', privacy: true, switchHref: '../../tr/pulsar-jack/privacy/' },
-  { file: 'tr/snake-jack/index.html', game: 'Snake Jack', lang: 'tr', privacy: false, switchHref: '../../snake-jack/' },
-  { file: 'tr/snake-jack/privacy/index.html', game: 'Snake Jack', lang: 'tr', privacy: true, switchHref: '../../../snake-jack/privacy/' },
-  { file: 'tr/pulsar-jack/index.html', game: 'Pulsar Jack', lang: 'tr', privacy: false, switchHref: '../../pulsar-jack/' },
-  { file: 'tr/pulsar-jack/privacy/index.html', game: 'Pulsar Jack', lang: 'tr', privacy: true, switchHref: '../../../pulsar-jack/privacy/' },
+  { file: 'snake-jack/index.html', game: 'Snake Jack', lang: 'en', privacy: false, supportHref: './', privacyHref: 'privacy/', switchHref: '../tr/snake-jack/', switchLang: 'tr' },
+  { file: 'snake-jack/privacy/index.html', game: 'Snake Jack', lang: 'en', privacy: true, supportHref: '../', privacyHref: './', switchHref: '../../tr/snake-jack/privacy/', switchLang: 'tr' },
+  { file: 'pulsar-jack/index.html', game: 'Pulsar Jack', lang: 'en', privacy: false, supportHref: './', privacyHref: 'privacy/', switchHref: '../tr/pulsar-jack/', switchLang: 'tr' },
+  { file: 'pulsar-jack/privacy/index.html', game: 'Pulsar Jack', lang: 'en', privacy: true, supportHref: '../', privacyHref: './', switchHref: '../../tr/pulsar-jack/privacy/', switchLang: 'tr' },
+  { file: 'tr/snake-jack/index.html', game: 'Snake Jack', lang: 'tr', privacy: false, supportHref: './', privacyHref: 'privacy/', switchHref: '../../snake-jack/', switchLang: 'en' },
+  { file: 'tr/snake-jack/privacy/index.html', game: 'Snake Jack', lang: 'tr', privacy: true, supportHref: '../', privacyHref: './', switchHref: '../../../snake-jack/privacy/', switchLang: 'en' },
+  { file: 'tr/pulsar-jack/index.html', game: 'Pulsar Jack', lang: 'tr', privacy: false, supportHref: './', privacyHref: 'privacy/', switchHref: '../../pulsar-jack/', switchLang: 'en' },
+  { file: 'tr/pulsar-jack/privacy/index.html', game: 'Pulsar Jack', lang: 'tr', privacy: true, supportHref: '../', privacyHref: './', switchHref: '../../../pulsar-jack/privacy/', switchLang: 'en' },
 ];
 
 async function source(file) {
@@ -31,6 +31,25 @@ async function walk(directory) {
     else files.push(absolute);
   }
   return files;
+}
+
+function attribute(attributes, name) {
+  const match = attributes.match(new RegExp(`\\b${name}="([^"]*)"`, 'i'));
+  return match?.[1];
+}
+
+function navigationAnchors(html) {
+  const navigation = html.match(/<nav\s+class="site-nav"[^>]*>([\s\S]*?)<\/nav>/i);
+  assert.ok(navigation, 'page must expose one site-nav navigation landmark');
+  return [...navigation[1].matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)].map((match) => ({
+    attributes: match[1],
+    href: attribute(match[1], 'href'),
+    text: match[2].replace(/<[^>]+>/g, '').trim(),
+  }));
+}
+
+function hrefs(html) {
+  return [...html.matchAll(/\bhref\s*=\s*(["'])(.*?)\1/gi)].map((match) => match[2]);
 }
 
 test('root is a bilingual selector for both support centers, not a game host', async () => {
@@ -51,11 +70,26 @@ for (const route of routes) {
     const html = await source(route.file);
     assert.match(html, new RegExp(`<html\\s+lang="${route.lang}"`, 'i'));
     assert.match(html, new RegExp(`<h1[^>]*>[^<]*${route.game}`, 'i'));
-    assert.match(html, /mailto:cuneyterem8@gmail\.com/i);
-    assert.match(html, />\s*(?:Support|Destek)\s*</i);
-    assert.match(html, />\s*(?:Privacy|Gizlilik)\s*</i);
-    assert.match(html, new RegExp(`href="${route.switchHref.replaceAll('/', '\\/')}"`, 'i'));
-    assert.match(html, />\s*(?:Türkçe|English)\s*</i);
+    const labels = route.lang === 'en'
+      ? { support: 'Support', privacy: 'Privacy', language: 'Türkçe' }
+      : { support: 'Destek', privacy: 'Gizlilik', language: 'English' };
+    const anchors = navigationAnchors(html);
+    assert.equal(anchors.length, 3, 'navigation must contain only support, privacy, and language switch links');
+    assert.deepEqual(anchors.map(({ href, text }) => ({ href, text })), [
+      { href: route.supportHref, text: labels.support },
+      { href: route.privacyHref, text: labels.privacy },
+      { href: route.switchHref, text: labels.language },
+    ]);
+    assert.equal(attribute(anchors[0].attributes, 'aria-current'), route.privacy ? undefined : 'page');
+    assert.equal(attribute(anchors[1].attributes, 'aria-current'), route.privacy ? 'page' : undefined);
+    assert.match(attribute(anchors[2].attributes, 'class') ?? '', /(?:^|\s)language-switch(?:\s|$)/);
+    assert.equal(attribute(anchors[2].attributes, 'lang'), route.switchLang);
+    assert.equal(attribute(anchors[2].attributes, 'hreflang'), route.switchLang);
+
+    const mailAnchors = [...html.matchAll(/<a\b([^>]*)href="mailto:cuneyterem8@gmail\.com"([^>]*)>/gi)];
+    assert.equal(mailAnchors.length, 1, 'each route must expose one support email link');
+    const mailClasses = attribute(`${mailAnchors[0][1]} ${mailAnchors[0][2]}`, 'class') ?? '';
+    assert.match(mailClasses, /(?:^|\s)touch-link(?:\s|$)/, 'support email link must use the 44px touch-link class');
   });
 }
 
@@ -126,10 +160,23 @@ test('all pages are static, local-resource-only, and tracker-free', async () => 
   const htmlFiles = ['index.html', ...routes.map(({ file }) => file)];
   for (const file of htmlFiles) {
     const html = await source(file);
-    assert.doesNotMatch(html, /<script\b/i, `${file} must not execute JavaScript`);
-    assert.doesNotMatch(html, /<link[^>]+href="https?:\/\//i, `${file} must not load remote styles or fonts`);
+    assert.doesNotMatch(html, /<(?:script|iframe|form|audio|video|img|picture|source|track|canvas|object|embed)\b/i, `${file} must not embed executable, form, or hosted media content`);
+    assert.doesNotMatch(html, /\b(?:src|srcset|poster|data)\s*=\s*["']\s*(?:https?:)?\/\//i, `${file} must not load remote media or executable resources`);
     assert.doesNotMatch(html, /cookie banner|google analytics|segment\.com|mixpanel|facebook pixel/i);
     assert.match(html, /<meta\s+name="viewport"/i);
+
+    for (const href of hrefs(html)) {
+      if (href === 'mailto:cuneyterem8@gmail.com') continue;
+      assert.doesNotMatch(href, /^(?:[a-z][a-z\d+.-]*:|\/\/|\/)/i, `${file} may link only to the support email or an internal relative target: ${href}`);
+      if (href.startsWith('#')) {
+        assert.match(html, new RegExp(`\\bid="${href.slice(1)}"`, 'i'), `${file} fragment must target an element`);
+        continue;
+      }
+      const cleanHref = href.split(/[?#]/, 1)[0];
+      const target = path.resolve(root, path.dirname(file), cleanHref, cleanHref.endsWith('/') ? 'index.html' : '');
+      assert.ok(target === root || target.startsWith(`${root}${path.sep}`), `${file} link must stay inside the repository`);
+      await readFile(target);
+    }
   }
 
   const allFiles = await walk(root);
@@ -150,5 +197,11 @@ test('shared CSS supplies responsive, keyboard-visible, 44px touch targets', asy
   assert.match(css, /--accent:/);
   assert.match(css, /--snake-accent:/);
   assert.match(css, /--pulsar-accent:/);
-  assert.doesNotMatch(css, /@import|url\(\s*["']?https?:\/\//i);
+  assert.doesNotMatch(css, /@import|url\(\s*["']?\s*(?:https?:)?\/\//i);
+
+  const touchRule = css.match(/\.touch-link\s*\{([^}]*)\}/i);
+  assert.ok(touchRule, 'mail/content links need an explicit touch-link rule');
+  assert.match(touchRule[1], /display:\s*inline-flex/);
+  assert.match(touchRule[1], /min-height:\s*44px/);
+  assert.match(css, /\.touch-link:focus-visible\s*\{[^}]*outline:/i);
 });

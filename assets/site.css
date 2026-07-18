@@ -40,6 +40,19 @@ a:hover {
   color: #b7f4ff;
 }
 
+.touch-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: 0.12rem;
+  vertical-align: middle;
+}
+
+.touch-link:focus-visible {
+  outline: 3px solid #fff59b;
+  outline-offset: 4px;
+}
+
 :focus-visible {
   outline: 3px solid #fff59b;
   outline-offset: 4px;
