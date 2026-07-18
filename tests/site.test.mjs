@@ -17,6 +17,28 @@ const routes = [
   { file: 'tr/pulsar-jack/privacy/index.html', game: 'Pulsar Jack', lang: 'tr', privacy: true, supportHref: '../', privacyHref: './', switchHref: '../../../pulsar-jack/privacy/', switchLang: 'en' },
 ];
 
+const rootAllowedHrefs = new Set([
+  '#main', './', 'assets/site.css', 'snake-jack/', 'tr/snake-jack/', 'pulsar-jack/', 'tr/pulsar-jack/',
+]);
+
+function allowedHrefsFor(file) {
+  if (file === 'index.html') return rootAllowedHrefs;
+  const route = routes.find((candidate) => candidate.file === file);
+  assert.ok(route, `missing route contract for ${file}`);
+  const directory = path.posix.dirname(file);
+  const depth = directory === '.' ? 0 : directory.split('/').length;
+  const rootPrefix = '../'.repeat(depth) || './';
+  return new Set([
+    '#main',
+    rootPrefix,
+    `${rootPrefix}assets/site.css`,
+    route.supportHref,
+    route.privacyHref,
+    route.switchHref,
+    'mailto:cuneyterem8@gmail.com',
+  ]);
+}
+
 async function source(file) {
   return readFile(path.join(root, file), 'utf8');
 }
@@ -50,6 +72,164 @@ function navigationAnchors(html) {
 
 function hrefs(html) {
   return [...html.matchAll(/\bhref\s*=\s*(["'])(.*?)\1/gi)].map((match) => match[2]);
+}
+
+function parseAttributes(raw, file, tagName) {
+  const attributes = [];
+  let cursor = 0;
+  while (cursor < raw.length) {
+    while (/\s/.test(raw[cursor] ?? '')) cursor += 1;
+    if (cursor >= raw.length) break;
+    if (raw[cursor] === '/') {
+      cursor += 1;
+      continue;
+    }
+
+    const nameStart = cursor;
+    while (cursor < raw.length && !/[\s=/]/.test(raw[cursor])) cursor += 1;
+    const name = raw.slice(nameStart, cursor).toLowerCase();
+    assert.ok(name, `${file} contains a malformed attribute on <${tagName}>`);
+    while (/\s/.test(raw[cursor] ?? '')) cursor += 1;
+
+    let value;
+    if (raw[cursor] === '=') {
+      cursor += 1;
+      while (/\s/.test(raw[cursor] ?? '')) cursor += 1;
+      assert.ok(cursor < raw.length, `${file} attribute ${name} is missing a value`);
+      const quote = raw[cursor] === '"' || raw[cursor] === "'" ? raw[cursor] : undefined;
+      if (quote) {
+        cursor += 1;
+        const valueStart = cursor;
+        while (cursor < raw.length && raw[cursor] !== quote) cursor += 1;
+        assert.ok(cursor < raw.length, `${file} attribute ${name} has an unterminated quoted value`);
+        value = raw.slice(valueStart, cursor);
+        cursor += 1;
+      } else {
+        const valueStart = cursor;
+        while (cursor < raw.length && !/\s/.test(raw[cursor])) cursor += 1;
+        value = raw.slice(valueStart, cursor);
+      }
+    }
+    attributes.push({ name, value });
+  }
+  return attributes;
+}
+
+function tokenizeStartTags(html, file) {
+  const tags = [];
+  let cursor = 0;
+  while (cursor < html.length) {
+    const open = html.indexOf('<', cursor);
+    if (open === -1) break;
+    if (html.startsWith('<!--', open)) {
+      const commentEnd = html.indexOf('-->', open + 4);
+      assert.notEqual(commentEnd, -1, `${file} contains an unterminated comment`);
+      cursor = commentEnd + 3;
+      continue;
+    }
+
+    const marker = html[open + 1];
+    if (marker === '/' || marker === '!' || marker === '?') {
+      const declarationEnd = html.indexOf('>', open + 2);
+      assert.notEqual(declarationEnd, -1, `${file} contains an unterminated declaration`);
+      cursor = declarationEnd + 1;
+      continue;
+    }
+
+    const nameMatch = html.slice(open + 1).match(/^([a-z][a-z\d:-]*)/i);
+    if (!nameMatch) {
+      cursor = open + 1;
+      continue;
+    }
+    const name = nameMatch[1].toLowerCase();
+    const attributesStart = open + 1 + nameMatch[1].length;
+    let quote;
+    let end = attributesStart;
+    for (; end < html.length; end += 1) {
+      const character = html[end];
+      if (quote) {
+        if (character === quote) quote = undefined;
+      } else if (character === '"' || character === "'") {
+        quote = character;
+      } else if (character === '>') {
+        break;
+      }
+    }
+    assert.ok(end < html.length, `${file} contains an unterminated <${name}> tag`);
+    tags.push({
+      name,
+      attributes: parseAttributes(html.slice(attributesStart, end), file, name),
+    });
+    cursor = end + 1;
+  }
+  return tags;
+}
+
+const allowedAttributes = new Map([
+  ['html', new Set(['lang'])],
+  ['head', new Set()],
+  ['meta', new Set(['charset', 'name', 'content'])],
+  ['title', new Set()],
+  ['link', new Set(['rel', 'href'])],
+  ['body', new Set(['class'])],
+  ['a', new Set(['class', 'href', 'lang', 'hreflang', 'aria-current'])],
+  ['header', new Set(['class'])],
+  ['main', new Set(['id', 'class'])],
+  ['footer', new Set(['class'])],
+  ['section', new Set(['class', 'aria-label', 'aria-labelledby'])],
+  ['article', new Set(['class'])],
+  ['nav', new Set(['class', 'aria-label'])],
+  ['h1', new Set(['id'])],
+  ['h2', new Set()],
+  ['p', new Set(['class'])],
+  ['div', new Set(['class', 'aria-hidden'])],
+  ['strong', new Set()],
+  ['code', new Set()],
+  ['br', new Set()],
+]);
+
+function assertStaticHtmlSafe(html, file, allowedHrefs) {
+  assert.ok(allowedHrefs instanceof Set, `${file} must have an explicit href allowlist`);
+  for (const tag of tokenizeStartTags(html, file)) {
+    const tagAttributes = allowedAttributes.get(tag.name);
+    assert.ok(tagAttributes, `${file} contains disallowed <${tag.name}> content`);
+    const seen = new Set();
+    for (const attribute of tag.attributes) {
+      assert.equal(seen.has(attribute.name), false, `${file} contains duplicate ${attribute.name} on <${tag.name}>`);
+      seen.add(attribute.name);
+      assert.doesNotMatch(attribute.name, /^on/i, `${file} contains inline event handler ${attribute.name}`);
+      assert.notEqual(attribute.name, 'style', `${file} must not use inline style attributes`);
+      assert.ok(tagAttributes.has(attribute.name), `${file} contains disallowed ${attribute.name} on <${tag.name}>`);
+      if (attribute.name === 'href') {
+        assert.ok(allowedHrefs.has(attribute.value), `${file} href is not explicitly allowed: ${attribute.value}`);
+      }
+    }
+    if (tag.name === 'a') assert.ok(seen.has('href'), `${file} anchor is missing href`);
+    if (tag.name === 'link') {
+      const rel = tag.attributes.find((attribute) => attribute.name === 'rel')?.value;
+      assert.equal(rel, 'stylesheet', `${file} may use link only for its local stylesheet`);
+    }
+  }
+}
+
+function legacyGuardAllows(html) {
+  try {
+    assert.doesNotMatch(html, /<(?:script|iframe|form|audio|video|img|picture|source|track|canvas|object|embed)\b/i);
+    assert.doesNotMatch(html, /\b(?:src|srcset|poster|data)\s*=\s*["']\s*(?:https?:)?\/\//i);
+    for (const href of hrefs(html)) {
+      if (href === 'mailto:cuneyterem8@gmail.com') continue;
+      assert.doesNotMatch(href, /^(?:[a-z][a-z\d+.-]*:|\/\/|\/)/i);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function assertStaticCssSafe(css, file) {
+  assert.doesNotMatch(css, /@import/i, `${file} must not import CSS resources`);
+  assert.doesNotMatch(css, /(?:javascript\s*:|expression\s*\()/i, `${file} must not execute CSS expressions or JavaScript URLs`);
+  assert.doesNotMatch(css, /url\(\s*["']?\s*(?:https?:|\/\/|data:)/i, `${file} must not load external or embedded CSS resources`);
 }
 
 test('root is a bilingual selector for both support centers, not a game host', async () => {
@@ -160,8 +340,7 @@ test('all pages are static, local-resource-only, and tracker-free', async () => 
   const htmlFiles = ['index.html', ...routes.map(({ file }) => file)];
   for (const file of htmlFiles) {
     const html = await source(file);
-    assert.doesNotMatch(html, /<(?:script|iframe|form|audio|video|img|picture|source|track|canvas|object|embed)\b/i, `${file} must not embed executable, form, or hosted media content`);
-    assert.doesNotMatch(html, /\b(?:src|srcset|poster|data)\s*=\s*["']\s*(?:https?:)?\/\//i, `${file} must not load remote media or executable resources`);
+    assertStaticHtmlSafe(html, file, allowedHrefsFor(file));
     assert.doesNotMatch(html, /cookie banner|google analytics|segment\.com|mixpanel|facebook pixel/i);
     assert.match(html, /<meta\s+name="viewport"/i);
 
@@ -189,6 +368,62 @@ test('all pages are static, local-resource-only, and tracker-free', async () => 
   assert.doesNotMatch(text, /game-container|>\s*Play online\s*</i);
 });
 
+const legacyBypasses = [
+  { name: 'unquoted external link href', html: '<a href=https://attacker.invalid>External</a>' },
+  { name: 'inline event handler', html: '<p onmouseover=alert(1)>Event</p>' },
+  { name: 'inline style remote URL', html: '<p style="background:url(//attacker.invalid/pixel)">Style</p>' },
+  { name: 'meta refresh redirect', html: '<meta http-equiv=refresh content="0;url=https://attacker.invalid">' },
+];
+
+for (const mutation of legacyBypasses) {
+  test(`resource guard rejects legacy bypass: ${mutation.name}`, async () => {
+    const html = (await source('index.html')).replace('</body>', `${mutation.html}</body>`);
+    assert.equal(legacyGuardAllows(html), true, 'mutation must demonstrate a real bypass in the previous guard');
+    assert.throws(() => assertStaticHtmlSafe(html, mutation.name, rootAllowedHrefs));
+  });
+}
+
+const forbiddenHtmlMutations = [
+  ['quoted event handler', '<p onclick="alert(1)">Event</p>'],
+  ['unquoted event handler', '<p onfocus=alert(1)>Event</p>'],
+  ['inline style JavaScript URL', '<p style="background:url(javascript:alert(1))">Style</p>'],
+  ['inline style expression', '<p style="width:expression(alert(1))">Style</p>'],
+  ['inline style element import', '<style>@import "https://attacker.invalid/x.css";</style>'],
+  ['inline style element URL', '<style>body{background:url(//attacker.invalid/x)}</style>'],
+  ['external meta refresh', '<meta http-equiv="refresh" content="0;url=https://attacker.invalid">'],
+  ['internal meta refresh', '<meta http-equiv=refresh content="0;url=snake-jack/">'],
+  ['JavaScript href scheme', '<a href=javascript:alert(1)>Link</a>'],
+  ['data href scheme', '<a href="data:text/html,unsafe">Link</a>'],
+  ['external quoted href', '<a href="https://attacker.invalid">Link</a>'],
+  ['protocol-relative href', '<a href=//attacker.invalid>Link</a>'],
+  ['external src', '<div src=https://attacker.invalid/x></div>'],
+  ['protocol-relative srcset', '<div srcset="//attacker.invalid/x 1x"></div>'],
+  ['external action', '<div action=https://attacker.invalid></div>'],
+  ['external poster', '<div poster=//attacker.invalid/x></div>'],
+  ['external data', '<div data=https://attacker.invalid/x></div>'],
+  ...['script', 'iframe', 'embed', 'object', 'form', 'audio', 'video', 'source', 'img']
+    .map((tag) => [`disallowed ${tag} element`, `<${tag}></${tag}>`]),
+];
+
+for (const [name, mutation] of forbiddenHtmlMutations) {
+  test(`resource guard rejects ${name}`, async () => {
+    const html = (await source('index.html')).replace('</body>', `${mutation}</body>`);
+    assert.throws(() => assertStaticHtmlSafe(html, name, rootAllowedHrefs));
+  });
+}
+
+for (const [name, mutation] of [
+  ['CSS import', '@import "https://attacker.invalid/x.css";'],
+  ['external CSS URL', 'body{background:url(https://attacker.invalid/x)}'],
+  ['protocol-relative CSS URL', 'body{background:url(//attacker.invalid/x)}'],
+  ['CSS JavaScript URL', 'body{background:url(javascript:alert(1))}'],
+  ['CSS expression', 'body{width:expression(alert(1))}'],
+]) {
+  test(`stylesheet guard rejects ${name}`, () => {
+    assert.throws(() => assertStaticCssSafe(mutation, name));
+  });
+}
+
 test('shared CSS supplies responsive, keyboard-visible, 44px touch targets', async () => {
   const css = await source('assets/site.css');
   assert.match(css, /:focus-visible/);
@@ -197,7 +432,7 @@ test('shared CSS supplies responsive, keyboard-visible, 44px touch targets', asy
   assert.match(css, /--accent:/);
   assert.match(css, /--snake-accent:/);
   assert.match(css, /--pulsar-accent:/);
-  assert.doesNotMatch(css, /@import|url\(\s*["']?\s*(?:https?:)?\/\//i);
+  assertStaticCssSafe(css, 'assets/site.css');
 
   const touchRule = css.match(/\.touch-link\s*\{([^}]*)\}/i);
   assert.ok(touchRule, 'mail/content links need an explicit touch-link rule');
