@@ -19,11 +19,29 @@ const routes = [
 
 const rootAllowedHrefs = new Set([
   '#main', './', 'assets/site.css', 'snake-jack/', 'tr/snake-jack/', 'pulsar-jack/', 'tr/pulsar-jack/',
+  'blast-the-squares/', 'tr/blast-the-squares/',
 ]);
+
+const policyLinks = new Set([
+  'https://reportaproblem.apple.com/',
+  'https://www.apple.com/legal/privacy/data/en/game-center/',
+  'https://www.apple.com/legal/privacy/',
+  'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/',
+  'https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement',
+]);
+const blastRoutes = ['en', 'tr'].flatMap(lang => ['support', 'privacy', 'terms'].map(page => {
+  const sub = page === 'support' ? '' : `/${page}`;
+  const directory = `${lang === 'tr' ? 'tr/' : ''}blast-the-squares${sub}`;
+  const prefix = '../'.repeat(directory.split('/').length);
+  return { file: `${directory}/index.html`, lang, page,
+    supportHref: sub ? '../' : './', privacyHref: page === 'privacy' ? './' : `${sub ? '../' : ''}privacy/`,
+    termsHref: page === 'terms' ? './' : `${sub ? '../' : ''}terms/`,
+    switchHref: `${prefix}${lang === 'en' ? 'tr/' : ''}blast-the-squares${sub}/` };
+}));
 
 function allowedHrefsFor(file) {
   if (file === 'index.html') return rootAllowedHrefs;
-  const route = routes.find((candidate) => candidate.file === file);
+  const route = [...routes, ...blastRoutes].find((candidate) => candidate.file === file);
   assert.ok(route, `missing route contract for ${file}`);
   const directory = path.posix.dirname(file);
   const depth = directory === '.' ? 0 : directory.split('/').length;
@@ -35,6 +53,7 @@ function allowedHrefsFor(file) {
     route.supportHref,
     route.privacyHref,
     route.switchHref,
+    ...(route.termsHref ? [route.termsHref, ...policyLinks] : []),
     'mailto:cuneyterem8@gmail.com',
   ]);
 }
@@ -336,8 +355,21 @@ test('Pulsar privacy calls SessionAnalytics device-only gameplay history', async
   assert.match(turkish, /SessionAnalytics[^.]*yalnızca cihazda tutulan oyun geçmiş/i);
 });
 
+test('Blast pages distinguish publisher and support, with working TR/EN policy navigation', async () => {
+  for (const route of blastRoutes) {
+    const html = await source(route.file);
+    assert.match(html, new RegExp(`<html lang="${route.lang}"`));
+    assert.match(html, /Mihriban Erem/);
+    assert.match(html, /Cüneyt Erem/);
+    assert.match(html, /mailto:cuneyterem8@gmail.com/);
+    const anchors = navigationAnchors(html);
+    assert.deepEqual(anchors.map(a => a.href), [route.supportHref, route.privacyHref, route.termsHref, route.switchHref]);
+    assert.equal(anchors.filter(a => attribute(a.attributes, 'aria-current') === 'page').length, 1);
+  }
+});
+
 test('all pages are static, local-resource-only, and tracker-free', async () => {
-  const htmlFiles = ['index.html', ...routes.map(({ file }) => file)];
+  const htmlFiles = ['index.html', ...routes.map(({ file }) => file), ...blastRoutes.map(({ file }) => file)];
   for (const file of htmlFiles) {
     const html = await source(file);
     assertStaticHtmlSafe(html, file, allowedHrefsFor(file));
@@ -346,6 +378,7 @@ test('all pages are static, local-resource-only, and tracker-free', async () => 
 
     for (const href of hrefs(html)) {
       if (href === 'mailto:cuneyterem8@gmail.com') continue;
+      if (file.includes('blast-the-squares/') && policyLinks.has(href)) continue;
       assert.doesNotMatch(href, /^(?:[a-z][a-z\d+.-]*:|\/\/|\/)/i, `${file} may link only to the support email or an internal relative target: ${href}`);
       if (href.startsWith('#')) {
         assert.match(html, new RegExp(`\\bid="${href.slice(1)}"`, 'i'), `${file} fragment must target an element`);
