@@ -23,6 +23,8 @@ const rootAllowedHrefs = new Set([
 ]);
 
 const policyLinks = new Set([
+  'https://policies.google.com/privacy',
+  'https://policies.google.com/technologies/partner-sites',
   'https://reportaproblem.apple.com/',
   'https://www.apple.com/legal/privacy/data/en/game-center/',
   'https://www.apple.com/legal/privacy/',
