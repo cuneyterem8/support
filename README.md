@@ -15,6 +15,8 @@ Blast the Squares (Kareleri Patlat) routes: `/blast-the-squares/`, `/blast-the-s
 
 Live base URL: https://cuneyterem8.github.io/support/ . Blast the Squares publisher: Mihriban Erem; support and technical operations: Cüneyt Erem, cuneyterem8@gmail.com. Other games retain their existing identity information.
 
+Advertising account setup: AppLovin/MAX and AdMob will be owned by Mihriban Erem using mihriii.aslan@gmail.com, with payouts to her bank account. This supersedes the earlier plan for accounts owned by Cüneyt. Account creation and approval remain pending. The technical support contact and GitHub/Codemagic ownership remain unchanged. Do not store bank details, tax identifiers, or account credentials in this repository.
+
 The Blast the Squares policy describes the current version without active ad SDKs. Update it and the in-app consent controls before releasing AppLovin/AdMob integration. The shared ad authorization file will need to live at the hostname root (`https://cuneyterem8.github.io/app-ads.txt`), not just under `/support/`; publisher entries and root hosting are still pending.
 
 ## Local checks
