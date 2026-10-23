@@ -7,8 +7,6 @@
   --muted: #bac2df;
   --border: #303b68;
   --accent: #76e6ff;
-  --snake-accent: #58f56c;
-  --pulsar-accent: #61d9ff;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -213,28 +211,6 @@ li {
   box-shadow: 0 0 1.5rem color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
-.snake-theme,
-body.snake-theme {
-  --accent: var(--snake-accent);
-}
-
-.pulsar-theme,
-body.pulsar-theme {
-  --accent: var(--pulsar-accent);
-}
-
-.blast-theme {
-  --accent: #ffb366;
-}
-
-.blast-theme .content-panel h1 {
-  font-size: clamp(1.9rem, 6vw, 3.2rem);
-}
-
-.blast-theme .content-panel {
-  overflow-wrap: anywhere;
-}
-
 .button {
   display: inline-flex;
   align-items: center;
@@ -317,7 +293,7 @@ body.pulsar-theme {
   }
 }
 
-/* Istanbul Tea Journey: scoped colours preserve the other games. */
+/* Shared support theme. English is the default; Turkish pages use the same layout. */
 .tea-theme { --accent: #e8ca8d; }
 body.tea-theme {
   color-scheme: dark;
@@ -329,7 +305,8 @@ body.tea-theme {
   --border: #537867;
   background: radial-gradient(circle at 15% 0%, #365747 0%, transparent 34rem), var(--bg);
 }
-.tea-theme .content-panel { background: var(--panel); overflow-wrap: anywhere; }
+.tea-theme .hero, .tea-theme .content-panel, .tea-theme .app-card { background: var(--panel); overflow-wrap: anywhere; }
+.tea-theme .card-grid { grid-template-columns: 1fr; max-width: 52rem; margin-inline: auto; }
 .tea-theme .content-panel h1 { font-size: clamp(2rem, 6vw, 3.4rem); }
 .tea-theme .lead { color: var(--text); font-size: 1.12rem; }
 .tea-theme .contact-card h2 { margin-top: 0; }
@@ -348,4 +325,6 @@ body.tea-theme {
     background: radial-gradient(circle at 15% 0%, #d6e9dc 0%, transparent 34rem), var(--bg);
   }
   body.tea-theme a:hover { color: #194432; }
+  body.tea-theme .button.primary, body.tea-theme .app-mark { color: #ffffff; }
+  body.tea-theme :focus-visible { outline-color: #235b42; }
 }

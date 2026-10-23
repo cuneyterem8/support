@@ -6,20 +6,8 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-const routes = [
-  { file: 'snake-jack/index.html', game: 'Snake Jack', lang: 'en', privacy: false, supportHref: './', privacyHref: 'privacy/', switchHref: '../tr/snake-jack/', switchLang: 'tr' },
-  { file: 'snake-jack/privacy/index.html', game: 'Snake Jack', lang: 'en', privacy: true, supportHref: '../', privacyHref: './', switchHref: '../../tr/snake-jack/privacy/', switchLang: 'tr' },
-  { file: 'pulsar-jack/index.html', game: 'Pulsar Jack', lang: 'en', privacy: false, supportHref: './', privacyHref: 'privacy/', switchHref: '../tr/pulsar-jack/', switchLang: 'tr' },
-  { file: 'pulsar-jack/privacy/index.html', game: 'Pulsar Jack', lang: 'en', privacy: true, supportHref: '../', privacyHref: './', switchHref: '../../tr/pulsar-jack/privacy/', switchLang: 'tr' },
-  { file: 'tr/snake-jack/index.html', game: 'Snake Jack', lang: 'tr', privacy: false, supportHref: './', privacyHref: 'privacy/', switchHref: '../../snake-jack/', switchLang: 'en' },
-  { file: 'tr/snake-jack/privacy/index.html', game: 'Snake Jack', lang: 'tr', privacy: true, supportHref: '../', privacyHref: './', switchHref: '../../../snake-jack/privacy/', switchLang: 'en' },
-  { file: 'tr/pulsar-jack/index.html', game: 'Pulsar Jack', lang: 'tr', privacy: false, supportHref: './', privacyHref: 'privacy/', switchHref: '../../pulsar-jack/', switchLang: 'en' },
-  { file: 'tr/pulsar-jack/privacy/index.html', game: 'Pulsar Jack', lang: 'tr', privacy: true, supportHref: '../', privacyHref: './', switchHref: '../../../pulsar-jack/privacy/', switchLang: 'en' },
-];
-
 const rootAllowedHrefs = new Set([
-  '#main', './', 'assets/site.css', 'snake-jack/', 'tr/snake-jack/', 'pulsar-jack/', 'tr/pulsar-jack/',
-  'blast-the-squares/', 'tr/blast-the-squares/',
+  '#main', './', 'assets/site.css',
   'istanbul-tea-journey/', 'tr/istanbul-tea-journey/',
 ]);
 
@@ -32,21 +20,18 @@ const policyLinks = new Set([
   'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/',
   'https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement',
 ]);
-const blastRoutes = ['en', 'tr'].flatMap(lang => ['support', 'privacy', 'terms'].map(page => {
+const teaRoutes = ['en', 'tr'].flatMap(lang => ['support', 'privacy', 'terms'].map(page => {
   const sub = page === 'support' ? '' : `/${page}`;
-  const directory = `${lang === 'tr' ? 'tr/' : ''}blast-the-squares${sub}`;
+  const directory = `${lang === 'tr' ? 'tr/' : ''}istanbul-tea-journey${sub}`;
   const prefix = '../'.repeat(directory.split('/').length);
   return { file: `${directory}/index.html`, lang, page,
     supportHref: sub ? '../' : './', privacyHref: page === 'privacy' ? './' : `${sub ? '../' : ''}privacy/`,
     termsHref: page === 'terms' ? './' : `${sub ? '../' : ''}terms/`,
-    switchHref: `${prefix}${lang === 'en' ? 'tr/' : ''}blast-the-squares${sub}/` };
+    switchHref: `${prefix}${lang === 'en' ? 'tr/' : ''}istanbul-tea-journey${sub}/` };
 }));
-const teaRoutes = blastRoutes.map(route => Object.fromEntries(Object.entries(route).map(([key,value]) =>
-  [key, typeof value === 'string' ? value.replaceAll('blast-the-squares','istanbul-tea-journey') : value])));
-
 function allowedHrefsFor(file) {
   if (file === 'index.html') return rootAllowedHrefs;
-  const route = [...routes, ...blastRoutes, ...teaRoutes].find((candidate) => candidate.file === file);
+  const route = teaRoutes.find((candidate) => candidate.file === file);
   assert.ok(route, `missing route contract for ${file}`);
   const directory = path.posix.dirname(file);
   const depth = directory === '.' ? 0 : directory.split('/').length;
@@ -256,121 +241,15 @@ function assertStaticCssSafe(css, file) {
   assert.doesNotMatch(css, /url\(\s*["']?\s*(?:https?:|\/\/|data:)/i, `${file} must not load external or embedded CSS resources`);
 }
 
-test('root is a bilingual selector for both support centers, not a game host', async () => {
+test('English-first home links only to the active game', async () => {
   const html = await source('index.html');
   assert.match(html, /<html\s+lang="en"/i);
-  assert.match(html, /Snake Jack/);
-  assert.match(html, /Pulsar Jack/);
-  assert.match(html, /href="snake-jack\/"/);
-  assert.match(html, /href="pulsar-jack\/"/);
-  assert.match(html, /href="tr\/snake-jack\/"/);
-  assert.match(html, /href="tr\/pulsar-jack\/"/);
-  assert.doesNotMatch(html, /href="(?:\.\/)?tr\/"/i);
-  assert.doesNotMatch(html, />\s*Play online\s*</i);
-});
-
-for (const route of routes) {
-  test(`${route.file} has the correct language, identity, navigation, and switch`, async () => {
-    const html = await source(route.file);
-    assert.match(html, new RegExp(`<html\\s+lang="${route.lang}"`, 'i'));
-    assert.match(html, new RegExp(`<h1[^>]*>[^<]*${route.game}`, 'i'));
-    const labels = route.lang === 'en'
-      ? { support: 'Support', privacy: 'Privacy', language: 'Türkçe' }
-      : { support: 'Destek', privacy: 'Gizlilik', language: 'English' };
-    const anchors = navigationAnchors(html);
-    assert.equal(anchors.length, 3, 'navigation must contain only support, privacy, and language switch links');
-    assert.deepEqual(anchors.map(({ href, text }) => ({ href, text })), [
-      { href: route.supportHref, text: labels.support },
-      { href: route.privacyHref, text: labels.privacy },
-      { href: route.switchHref, text: labels.language },
-    ]);
-    assert.equal(attribute(anchors[0].attributes, 'aria-current'), route.privacy ? undefined : 'page');
-    assert.equal(attribute(anchors[1].attributes, 'aria-current'), route.privacy ? 'page' : undefined);
-    assert.match(attribute(anchors[2].attributes, 'class') ?? '', /(?:^|\s)language-switch(?:\s|$)/);
-    assert.equal(attribute(anchors[2].attributes, 'lang'), route.switchLang);
-    assert.equal(attribute(anchors[2].attributes, 'hreflang'), route.switchLang);
-
-    const mailAnchors = [...html.matchAll(/<a\b([^>]*)href="mailto:cuneyterem8@gmail\.com"([^>]*)>/gi)];
-    assert.equal(mailAnchors.length, 1, 'each route must expose one support email link');
-    const mailClasses = attribute(`${mailAnchors[0][1]} ${mailAnchors[0][2]}`, 'class') ?? '';
-    assert.match(mailClasses, /(?:^|\s)touch-link(?:\s|$)/, 'support email link must use the 44px touch-link class');
-  });
-}
-
-test('Snake Jack support copy documents gameplay, local progress, purchase, and diagnostic details', async () => {
-  for (const file of ['snake-jack/index.html', 'tr/snake-jack/index.html']) {
-    const html = await source(file);
-    assert.match(html, /gameplay|oynanış/i);
-    assert.match(html, /local progress|yerel ilerleme/i);
-    assert.match(html, /snake_product1/);
-    assert.match(html, /10(?:,|\.)000 (?:credits|kredi)/i);
-    assert.match(html, /device model|cihaz modeli/i);
-    assert.match(html, /iOS version|iOS sürümü/i);
-    assert.match(html, /issue description|sorun açıklaması/i);
-  }
-});
-
-test('Pulsar Jack support copy preserves device-only analytics and optional 20,000 credits', async () => {
-  for (const file of ['pulsar-jack/index.html', 'tr/pulsar-jack/index.html']) {
-    const html = await source(file);
-    assert.match(html, /SessionAnalytics/);
-    assert.match(html, /device-only|yalnızca cihazda/i);
-    assert.match(html, /optional|isteğe bağlı/i);
-    assert.match(html, /20(?:,|\.)000 (?:credits|kredi)/i);
-    assert.match(html, /device model|cihaz modeli/i);
-    assert.match(html, /iOS version|iOS sürümü/i);
-    assert.match(html, /issue description|sorun açıklaması/i);
-  }
-});
-
-test('English privacy policies make separate complete no-collection disclosures', async () => {
-  for (const game of ['snake-jack', 'pulsar-jack']) {
-    const html = await source(`${game}/privacy/index.html`);
-    assert.match(html, /does not collect personal data/i);
-    assert.match(html, /no user accounts/i);
-    assert.match(html, /no advertising trackers/i);
-    assert.match(html, /no remote analytics/i);
-    assert.match(html, /transaction identifiers[^.]*remain on the device/i);
-    assert.match(html, /Apple processes App Store purchases under Apple(?:'|’|&#39;)s terms/i);
-    assert.match(html, /support email is used only to respond/i);
-    assert.match(html, /Effective date:\s*2026-07-15/i);
-    assert.match(html, /Developer:\s*Cüneyt Erem/i);
-  }
-});
-
-test('Turkish privacy policies independently make the same complete disclosures', async () => {
-  for (const game of ['snake-jack', 'pulsar-jack']) {
-    const html = await source(`tr/${game}/privacy/index.html`);
-    assert.match(html, /kişisel veri toplamaz/i);
-    assert.match(html, /kullanıcı hesabı yoktur/i);
-    assert.match(html, /reklam takipçisi yoktur/i);
-    assert.match(html, /uzaktan analiz yoktur/i);
-    assert.match(html, /işlem kimlikleri[^.]*cihazda kalır/i);
-    assert.match(html, /Apple[^.]*App Store satın alımlarını[^.]*işler/i);
-    assert.match(html, /destek e-postası[^.]*yalnızca[^.]*yanıtlamak için/i);
-    assert.match(html, /Yürürlük tarihi:\s*2026-07-15/i);
-    assert.match(html, /Geliştirici:\s*Cüneyt Erem/i);
-  }
-});
-
-test('Pulsar privacy calls SessionAnalytics device-only gameplay history', async () => {
-  const english = await source('pulsar-jack/privacy/index.html');
-  const turkish = await source('tr/pulsar-jack/privacy/index.html');
-  assert.match(english, /SessionAnalytics[^.]*device-only gameplay history/i);
-  assert.match(turkish, /SessionAnalytics[^.]*yalnızca cihazda tutulan oyun geçmiş/i);
-});
-
-test('Blast pages distinguish publisher and support, with working TR/EN policy navigation', async () => {
-  for (const route of blastRoutes) {
-    const html = await source(route.file);
-    assert.match(html, new RegExp(`<html lang="${route.lang}"`));
-    assert.match(html, /Mihriban Erem/);
-    assert.match(html, /Cüneyt Erem/);
-    assert.match(html, /mailto:cuneyterem8@gmail.com/);
-    const anchors = navigationAnchors(html);
-    assert.deepEqual(anchors.map(a => a.href), [route.supportHref, route.privacyHref, route.termsHref, route.switchHref]);
-    assert.equal(anchors.filter(a => attribute(a.attributes, 'aria-current') === 'page').length, 1);
-  }
+  assert.match(html, /Istanbul Tea Journey/);
+  assert.match(html, /href="istanbul-tea-journey\/"/);
+  assert.match(html, /href="tr\/istanbul-tea-journey\/"/);
+  assert.doesNotMatch(html, /Snake Jack|Pulsar Jack|Blast the Squares|Kareleri Patlat/);
+  const files = (await walk(root)).map(file => path.relative(root, file).replaceAll('\\', '/'));
+  assert.equal(files.some(file => /(?:snake-jack|pulsar-jack|blast-the-squares)\//.test(file)), false);
 });
 
 test('Istanbul Tea Journey pages retain bilingual navigation, publisher identity and accurate service disclosures', async () => {
@@ -394,7 +273,7 @@ test('Istanbul Tea Journey pages retain bilingual navigation, publisher identity
 });
 
 test('all pages are static, local-resource-only, and tracker-free', async () => {
-  const htmlFiles = ['index.html', ...routes.map(({ file }) => file), ...blastRoutes.map(({ file }) => file), ...teaRoutes.map(({file})=>file)];
+  const htmlFiles = ['index.html', ...teaRoutes.map(({file})=>file)];
   for (const file of htmlFiles) {
     const html = await source(file);
     assertStaticHtmlSafe(html, file, allowedHrefsFor(file));
@@ -403,7 +282,7 @@ test('all pages are static, local-resource-only, and tracker-free', async () => 
 
     for (const href of hrefs(html)) {
       if (href === 'mailto:cuneyterem8@gmail.com') continue;
-      if ((file.includes('blast-the-squares/') || file.includes('istanbul-tea-journey/')) && policyLinks.has(href)) continue;
+      if (file.includes('istanbul-tea-journey/') && policyLinks.has(href)) continue;
       assert.doesNotMatch(href, /^(?:[a-z][a-z\d+.-]*:|\/\/|\/)/i, `${file} may link only to the support email or an internal relative target: ${href}`);
       if (href.startsWith('#')) {
         assert.match(html, new RegExp(`\\bid="${href.slice(1)}"`, 'i'), `${file} fragment must target an element`);
@@ -449,7 +328,7 @@ const forbiddenHtmlMutations = [
   ['inline style element import', '<style>@import "https://attacker.invalid/x.css";</style>'],
   ['inline style element URL', '<style>body{background:url(//attacker.invalid/x)}</style>'],
   ['external meta refresh', '<meta http-equiv="refresh" content="0;url=https://attacker.invalid">'],
-  ['internal meta refresh', '<meta http-equiv=refresh content="0;url=snake-jack/">'],
+  ['internal meta refresh', '<meta http-equiv=refresh content="0;url=istanbul-tea-journey/">'],
   ['JavaScript href scheme', '<a href=javascript:alert(1)>Link</a>'],
   ['data href scheme', '<a href="data:text/html,unsafe">Link</a>'],
   ['external quoted href', '<a href="https://attacker.invalid">Link</a>'],
@@ -488,8 +367,7 @@ test('shared CSS supplies responsive, keyboard-visible, 44px touch targets', asy
   assert.match(css, /min-height:\s*44px/);
   assert.match(css, /@media\s*\(max-width:/);
   assert.match(css, /--accent:/);
-  assert.match(css, /--snake-accent:/);
-  assert.match(css, /--pulsar-accent:/);
+  assert.match(css, /\.tea-theme/);
   assertStaticCssSafe(css, 'assets/site.css');
 
   const touchRule = css.match(/\.touch-link\s*\{([^}]*)\}/i);
