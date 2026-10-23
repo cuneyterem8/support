@@ -20,6 +20,7 @@ const routes = [
 const rootAllowedHrefs = new Set([
   '#main', './', 'assets/site.css', 'snake-jack/', 'tr/snake-jack/', 'pulsar-jack/', 'tr/pulsar-jack/',
   'blast-the-squares/', 'tr/blast-the-squares/',
+  'istanbul-tea-journey/', 'tr/istanbul-tea-journey/',
 ]);
 
 const policyLinks = new Set([
@@ -40,10 +41,12 @@ const blastRoutes = ['en', 'tr'].flatMap(lang => ['support', 'privacy', 'terms']
     termsHref: page === 'terms' ? './' : `${sub ? '../' : ''}terms/`,
     switchHref: `${prefix}${lang === 'en' ? 'tr/' : ''}blast-the-squares${sub}/` };
 }));
+const teaRoutes = blastRoutes.map(route => Object.fromEntries(Object.entries(route).map(([key,value]) =>
+  [key, typeof value === 'string' ? value.replaceAll('blast-the-squares','istanbul-tea-journey') : value])));
 
 function allowedHrefsFor(file) {
   if (file === 'index.html') return rootAllowedHrefs;
-  const route = [...routes, ...blastRoutes].find((candidate) => candidate.file === file);
+  const route = [...routes, ...blastRoutes, ...teaRoutes].find((candidate) => candidate.file === file);
   assert.ok(route, `missing route contract for ${file}`);
   const directory = path.posix.dirname(file);
   const depth = directory === '.' ? 0 : directory.split('/').length;
@@ -370,8 +373,28 @@ test('Blast pages distinguish publisher and support, with working TR/EN policy n
   }
 });
 
+test('Istanbul Tea Journey pages retain bilingual navigation, publisher identity and accurate service disclosures', async () => {
+  for (const route of teaRoutes) {
+    const html = await source(route.file);
+    assert.match(html,new RegExp(`<html lang="${route.lang}"`));
+    assert.match(html,/Mihriban Erem/);assert.match(html,/Cüneyt Erem/);
+    assert.match(html,/10(?:,|\.)000/);assert.match(html,/StoreKit|Apple/);
+    const anchors=navigationAnchors(html);
+    assert.deepEqual(anchors.map(a=>a.href),[route.supportHref,route.privacyHref,route.termsHref,route.switchHref]);
+    assert.equal(anchors.filter(a=>attribute(a.attributes,'aria-current')==='page').length,1);
+    assert.equal(attribute(anchors[3].attributes,'lang'),route.lang==='en'?'tr':'en');
+    assert.equal((html.match(/href="mailto:cuneyterem8@gmail.com"/g)??[]).length,1);
+    if(route.page==='privacy'){
+      assert.match(html,/GitHub/);assert.match(html,/IP/);
+      assert.match(html,route.lang==='en'?/transaction identifiers remain on the device/:/işlem kimlikleri cihazda kalır/);
+      assert.match(html,route.lang==='en'?/support correspondence/i:/yazışmalar/i);
+    }
+    assert.doesNotMatch(html,/AdMob-enabled|reklamla ödül katlanır|Game Center keeps|1,000 Gold|1\.000 Altın/);
+  }
+});
+
 test('all pages are static, local-resource-only, and tracker-free', async () => {
-  const htmlFiles = ['index.html', ...routes.map(({ file }) => file), ...blastRoutes.map(({ file }) => file)];
+  const htmlFiles = ['index.html', ...routes.map(({ file }) => file), ...blastRoutes.map(({ file }) => file), ...teaRoutes.map(({file})=>file)];
   for (const file of htmlFiles) {
     const html = await source(file);
     assertStaticHtmlSafe(html, file, allowedHrefsFor(file));
@@ -380,7 +403,7 @@ test('all pages are static, local-resource-only, and tracker-free', async () => 
 
     for (const href of hrefs(html)) {
       if (href === 'mailto:cuneyterem8@gmail.com') continue;
-      if (file.includes('blast-the-squares/') && policyLinks.has(href)) continue;
+      if ((file.includes('blast-the-squares/') || file.includes('istanbul-tea-journey/')) && policyLinks.has(href)) continue;
       assert.doesNotMatch(href, /^(?:[a-z][a-z\d+.-]*:|\/\/|\/)/i, `${file} may link only to the support email or an internal relative target: ${href}`);
       if (href.startsWith('#')) {
         assert.match(html, new RegExp(`\\bid="${href.slice(1)}"`, 'i'), `${file} fragment must target an element`);

@@ -1,6 +1,6 @@
 # Jack Games support center
 
-Static, accessible support and privacy pages for Blast the Squares, Snake Jack and Pulsar Jack. This repository contains no hosted game code, client-side JavaScript, analytics, or remote resources. External policy links are ordinary navigation links.
+Static, accessible support and privacy pages for Istanbul Tea Journey, Blast the Squares, Snake Jack and Pulsar Jack. This repository contains no hosted game code, client-side JavaScript, analytics, or remote resources. External policy links are ordinary navigation links.
 
 ## Public routes
 
@@ -9,7 +9,7 @@ Static, accessible support and privacy pages for Blast the Squares, Snake Jack a
 | Snake Jack | `/snake-jack/` | `/snake-jack/privacy/` | `/tr/snake-jack/` | `/tr/snake-jack/privacy/` |
 | Pulsar Jack | `/pulsar-jack/` | `/pulsar-jack/privacy/` | `/tr/pulsar-jack/` | `/tr/pulsar-jack/privacy/` |
 
-The repository root is a bilingual selector for all three games.
+The repository root is a bilingual selector for all four games.
 
 Blast the Squares (Kareleri Patlat) routes: `/blast-the-squares/`, `/blast-the-squares/privacy/`, `/blast-the-squares/terms/`; Turkish equivalents start with `/tr/`.
 
@@ -34,3 +34,12 @@ python -m http.server 8080 --bind 127.0.0.1
 ```
 
 Contact: [cuneyterem8@gmail.com](mailto:cuneyterem8@gmail.com)
+
+## Istanbul Tea Journey / İstanbul Çay Yolculuğu
+
+English: `/istanbul-tea-journey/`, `/istanbul-tea-journey/privacy/`, `/istanbul-tea-journey/terms/`.
+Turkish: `/tr/istanbul-tea-journey/`, `/tr/istanbul-tea-journey/privacy/`, `/tr/istanbul-tea-journey/terms/`.
+
+Publisher: Mihriban Erem; support and technical operations: Cüneyt Erem, cuneyterem8@gmail.com. This game has no advertising, tracking SDK, Game Center or developer cloud wallet. Its optional iOS purchase is a repeatable consumable 10,000 Gold pack; StoreKit supplies local pricing (intended US price $4.99). Saves and transaction identifiers remain on device. Website hosting logs and voluntary support email are explained separately in its policy. The shared app-ads.txt remains for other games, and is not a service used by Istanbul Tea Journey.
+
+Policies updated 24 October 2026. These pages describe the current source behaviour; App Store screenshots, Apple product approval and TestFlight device/payment validation are separate release steps.

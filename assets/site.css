@@ -316,3 +316,36 @@ body.pulsar-theme {
     grid-template-columns: 1fr;
   }
 }
+
+/* Istanbul Tea Journey: scoped colours preserve the other games. */
+.tea-theme { --accent: #e8ca8d; }
+body.tea-theme {
+  color-scheme: dark;
+  --bg: #10221d;
+  --panel: #19372d;
+  --panel-raised: #24493b;
+  --text: #f5f0df;
+  --muted: #d3dfd3;
+  --border: #537867;
+  background: radial-gradient(circle at 15% 0%, #365747 0%, transparent 34rem), var(--bg);
+}
+.tea-theme .content-panel { background: var(--panel); overflow-wrap: anywhere; }
+.tea-theme .content-panel h1 { font-size: clamp(2rem, 6vw, 3.4rem); }
+.tea-theme .lead { color: var(--text); font-size: 1.12rem; }
+.tea-theme .contact-card h2 { margin-top: 0; }
+.tea-theme .site-nav a[aria-current="page"] { box-shadow: inset 0 0 0 1px var(--accent); }
+.tea-theme a:hover { color: #fff2c8; }
+@media (prefers-color-scheme: light) {
+  body.tea-theme {
+    color-scheme: light;
+    --bg: #eaf2ee;
+    --panel: #ffffff;
+    --panel-raised: #edf5ef;
+    --text: #173b30;
+    --muted: #3b5b50;
+    --border: #a4bfb2;
+    --accent: #305e48;
+    background: radial-gradient(circle at 15% 0%, #d6e9dc 0%, transparent 34rem), var(--bg);
+  }
+  body.tea-theme a:hover { color: #194432; }
+}
